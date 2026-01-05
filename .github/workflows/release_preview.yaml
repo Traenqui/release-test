@@ -1,0 +1,31 @@
+name: Release preview
+
+on:
+  pull_request:
+    branches:
+      - master
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    name: Release preview
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check PR title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: ./scripts/check_pr_title.sh "$PR_TITLE"
+
+      - name: Preview next release
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_REF: origin/${{ github.event.pull_request.base.ref }}
+        run: ./scripts/release_preview.sh "$BASE_REF" "$PR_TITLE" >> "$GITHUB_STEP_SUMMARY"
