@@ -1,3 +1,4 @@
 chore: initial commit
 feat(chat): add chat endpoint (#1)
 fix: handle empty message (#2)
+feat(auth): add login (#3)
