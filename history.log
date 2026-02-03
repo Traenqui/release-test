@@ -4,3 +4,4 @@ fix: handle empty message (#2)
 feat(auth): add login (#3)
 Modify deployment workflow
 feat!: version 2 (#4)
+refactor(api): rename chat routes (#5)
