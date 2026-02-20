@@ -7,3 +7,4 @@ feat!: version 2 (#4)
 refactor(api): rename chat routes (#5)
 fix(db): reduce pool size (#6)
 ci: pin action versions (#7)
+fix(deploy): fix docker tag
