@@ -9,3 +9,4 @@ fix(db): reduce pool size (#6)
 ci: pin action versions (#7)
 docs: describe release flow (#8)
 chore: bump dependencies (#9)
+cinema: not a conventional type
