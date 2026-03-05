@@ -10,3 +10,4 @@ ci: pin action versions (#7)
 docs: describe release flow (#8)
 chore: bump dependencies (#9)
 cinema: not a conventional type
+feature: typo in the type
