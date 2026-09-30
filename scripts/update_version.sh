@@ -42,8 +42,8 @@ bump_version() {
 }
 
 main() {
-  local tag level
-  tag="$(latest_release_tag)"
+  local release_tag="${1:-}" tag level
+  tag="$(latest_release_tag "$release_tag")"
   echo "Base tag: ${tag:-<none>}" >&2
   level="$(each_commit "${tag:+$tag..}HEAD" | release_level)"
   if [[ "$level" == none ]]; then

@@ -21,6 +21,13 @@ fresh_clone() {
   cd "$scratch/work" || exit 1
   git config user.name "Release Test"
   git config user.email "test@example.invalid"
+  git switch --quiet -C master
+  git push --quiet --force origin master
+}
+
+tag_and_push() {
+  git tag "$1"
+  git push --quiet origin master "$1"
 }
 
 add_commit() {
@@ -89,37 +96,77 @@ test_full_changelog() {
   check "changelog: newest entry is unreleased" "## [Unreleased]" "$(head -1 <<< "$changelog" | cut -d' ' -f1-2)"
 }
 
-test_release_refuses_existing_tag() {
+test_release_accepts_matching_tag() {
   fresh_clone
-  add_commit "fix(chat): trim whitespace"
-  git push --quiet origin master
-  local output status=0
-  output="$(./release.sh 2>&1)" || status=$?
-  check "release: existing tag v2.0.2 fails" 1 "$status"
-  check_contains "release: existing tag message" "Tag v2.0.2 already exists." "$output"
+  add_commit "feat(chat): stream answers (#10)"
+  tag_and_push v2.1.0
+  local notes status=0
+  notes="$(./release.sh v2.1.0 2>/dev/null)" || status=$?
+  check "release: matching tag succeeds" 0 "$status"
+  check "release: notes use the tag" "## [v2.1.0] - $(date +%F)" "$(head -1 <<< "$notes")"
+  check_contains "release: notes list the feature" "* feat(chat): stream answers ([#10]" "$notes"
+  check_missing "release: notes skip older releases" "feat(auth): add login" "$notes"
 }
 
-test_release_refuses_dirty_tree() {
+test_release_rejects_wrong_version() {
   fresh_clone
-  echo "draft" > draft.txt
+  add_commit "feat(chat): stream answers (#10)"
+  tag_and_push v2.0.3
   local output status=0
-  output="$(./release.sh 2>&1)" || status=$?
-  check "release: dirty tree fails" 1 "$status"
-  check_contains "release: dirty tree message" "Working tree is not clean." "$output"
+  output="$(./release.sh v2.0.3 2>&1)" || status=$?
+  check "release: wrong version fails" 1 "$status"
+  check_contains "release: wrong version message" "Expected v2.1.0." "$output"
 }
 
-test_release_end_to_end() {
+test_release_rejects_tag_without_release_commits() {
+  fresh_clone
+  add_commit "docs: fix typo"
+  tag_and_push v2.0.3
+  local output status=0
+  output="$(./release.sh v2.0.3 2>&1)" || status=$?
+  check "release: no relevant commits fails" 1 "$status"
+  check_contains "release: no relevant commits message" "has no release-relevant commits." "$output"
+}
+
+test_release_rejects_tag_off_master() {
+  fresh_clone
+  git switch --quiet -c side
+  add_commit "feat(chat): stream answers (#10)"
+  git tag v2.1.0
+  git push --quiet origin v2.1.0
+  local output status=0
+  output="$(./release.sh v2.1.0 2>&1)" || status=$?
+  check "release: tag off master fails" 1 "$status"
+  check_contains "release: tag off master message" "Tag v2.1.0 is not on 'master'." "$output"
+}
+
+test_changelog_lists_staging_commits_as_unreleased() {
   fresh_clone
   add_commit "feat(chat): stream answers (#10)"
   git push --quiet origin master
   local status=0
-  ./release.sh > /dev/null 2>&1 || status=$?
-  check "release: succeeds" 0 "$status"
-  check "release: tag pushed" "v2.1.0" "$(git ls-remote --tags origin v2.1.0 | awk -F/ '{print $3}' | head -1)"
-  check "release: commit pushed" "$(git rev-parse HEAD)" "$(git ls-remote origin refs/heads/master | cut -f1)"
-  check "release: changelog heading" "## [v2.1.0] - $(date +%F)" "$(head -1 CHANGELOG.md)"
-  check_missing "release: no unreleased section left" "[Unreleased]" "$(cat CHANGELOG.md)"
-  check "release: second run is a no-op" "Nothing to release." "$(./release.sh 2>/dev/null)"
+  ./scripts/update_changelog.sh > /dev/null 2>&1 || status=$?
+  check "changelog update: succeeds" 0 "$status"
+  check "changelog update: commit pushed" "$(git rev-parse HEAD)" "$(git ls-remote origin refs/heads/master | cut -f1)"
+  check "changelog update: bot commit subject" "chore(changelog): update changelog" "$(git log -1 --format=%s)"
+  check_contains "changelog update: feature is unreleased" "* feat(chat): stream answers" "$(changelog_section Unreleased "$(cat CHANGELOG.md)")"
+  check_missing "changelog update: bot commit is not listed" "chore(changelog)" "$(cat CHANGELOG.md)"
+  local head_before
+  head_before="$(git rev-parse HEAD)"
+  ./scripts/update_changelog.sh > /dev/null 2>&1
+  check "changelog update: second run adds no commit" "$head_before" "$(git rev-parse HEAD)"
+}
+
+test_changelog_turns_unreleased_into_release() {
+  fresh_clone
+  add_commit "feat(chat): stream answers (#10)"
+  git push --quiet origin master
+  ./scripts/update_changelog.sh > /dev/null 2>&1
+  tag_and_push v2.1.0
+  ./scripts/update_changelog.sh > /dev/null 2>&1
+  check "changelog release: heading" "## [v2.1.0] - $(date +%F)" "$(head -1 CHANGELOG.md)"
+  check_missing "changelog release: no unreleased section left" "[Unreleased]" "$(cat CHANGELOG.md)"
+  check "changelog release: pushed" "$(git rev-parse HEAD)" "$(git ls-remote origin refs/heads/master | cut -f1)"
 }
 
 test_pr_title_check() {

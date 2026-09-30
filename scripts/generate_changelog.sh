@@ -93,7 +93,7 @@ render_full_history() {
 
 render_pending_release() {
   local slug="$1" label="$2" tag
-  tag="$(latest_release_tag)"
+  tag="$(latest_release_tag "$label")"
   render_section "${tag:+$tag..}HEAD" "$label" "$(date +%F)" "$slug"
 }
 
