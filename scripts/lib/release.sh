@@ -8,9 +8,14 @@ readonly KNOWN_COMMIT_TYPES=" feat fix perf refactor style test docs build ci ch
 readonly EXIT_NO_RELEASE=3
 readonly FIELD_SEPARATOR=$'\x1f'
 readonly RECORD_SEPARATOR=$'\x1e'
+readonly CHANGELOG_COMMIT_SUBJECT="chore(changelog): update changelog"
 
+# jg 30.09.26
 latest_release_tag() {
-  git describe --tags --abbrev=0 --match "$SEMVER_TAG_GLOB" HEAD 2>/dev/null || true
+  local excluded_tag="${1:-}"
+  local -a exclude_options=()
+  if [[ -n "$excluded_tag" ]]; then exclude_options=(--exclude "$excluded_tag"); fi
+  git describe --tags --abbrev=0 --match "$SEMVER_TAG_GLOB" "${exclude_options[@]}" HEAD 2>/dev/null || true
 }
 
 commit_kind() {
@@ -38,6 +43,7 @@ each_commit() {
   git log "$range" --no-merges --format="%h${FIELD_SEPARATOR}%s${FIELD_SEPARATOR}%b${RECORD_SEPARATOR}" |
     while IFS="$FIELD_SEPARATOR" read -r -d "$RECORD_SEPARATOR" hash subject body; do
       hash="${hash#$'\n'}"
+      if [[ "$subject" == "$CHANGELOG_COMMIT_SUBJECT" ]]; then continue; fi
       printf '%s%s%s%s%s\n' "$hash" "$FIELD_SEPARATOR" "$subject" "$FIELD_SEPARATOR" "$(commit_kind "$subject" "$body")"
     done
 }
