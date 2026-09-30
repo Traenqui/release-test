@@ -1,0 +1,7 @@
+name: Debug trigger
+on: [push, pull_request]
+jobs:
+  echo:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "event=${{ github.event_name }}"
